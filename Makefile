@@ -1,7 +1,7 @@
 
 #AMD driver settings
 AMDAPPSDK_PATH=/opt/AMDAPP
-AMDAPPSDK_ARCH=x86
+AMDAPPSDK_ARCH=x86_64
 
 PROGRAM_NAME := amdmeminfo
 

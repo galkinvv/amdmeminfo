@@ -394,6 +394,7 @@ static memtype_t memtypes[] = {
     { MEM_GDDR5, 0x1, 0x3, "Samsung K4G20325FD" },
     { MEM_GDDR5, 0x1, 0x6, "Samsung K4G20325FS" },
     { MEM_GDDR5, 0x1, 0x9, "Samsung K4G41325FE" },
+    { MEM_GDDR5, 0x1, 0xa, "Samsung K4G80325FC" },
     { MEM_GDDR5, 0x2, -1, "Unknown Infineon GDDR5" },
     { MEM_GDDR5, 0x3, -1, "Unknown Elpida GDDR5 GDDR5" },
     { MEM_GDDR5, 0x3, 0x0, "Elpida EDW4032BABG" },
