@@ -51,6 +51,7 @@
 
 #define mmMC_SEQ_MISC0 0xa80
 #define mmMC_SEQ_MISC0_FIJI 0xa71
+#define mmMC_NAVI_UNK		0x50
 
 #define BLANK_BIOS_VER "xxx-xxx-xxxx"
 
@@ -97,8 +98,8 @@ static const char *mem_type_label[] = {
   "DDR3",
   "DDR4",
   "GDDR5",
-  "GDDR6",
   "HBM",
+  "GDDR6"
 };
 
 static const char *amd_asic_name[] = {
@@ -739,12 +740,12 @@ static size_t dump_vbios(gpu_t *gpu)
     free(gpu->vbios);
   }
   
-  //allocate 64k for vbios - could be larger but for now only read 64k
-  if ((gpu->vbios = (unsigned char *)malloc(0x10000)) == NULL) {
+  //allocate 1M for vbios - could be larger but for now only read 1M
+  if ((gpu->vbios = (unsigned char *)malloc(0x100000)) == NULL) {
     print(LOG_ERROR, "%02x:%02x.%x: Unable to allocate memory for vbios\n", gpu->pcibus, gpu->pcidev, gpu->pcifunc);
     goto relock;
   }
-  
+    
   //read vbios into buffer
   if ((fp = fopen(obj, "r")) == NULL) {
     print(LOG_ERROR, "%02x:%02x.%x: Unable to read vbios\n", gpu->pcibus, gpu->pcidev, gpu->pcifunc);
@@ -752,10 +753,10 @@ static size_t dump_vbios(gpu_t *gpu)
     goto relock;
   }
   
-  success = fread(gpu->vbios, 0x10000, 1, fp);
+  success = fread(gpu->vbios, 0x100000, 1, fp);
   fclose(fp);
 
-  //temp fix some gpus returned less than 64k...
+  //temp fix some gpus returned less than 1M...
   success = 1;
   
 relock:
@@ -797,6 +798,70 @@ static void get_bios_version(gpu_t *gpu)
     ++len;
   }
 }
+
+#include "vbios-tables.h"
+
+// ONLY used for Navi GPUs
+static VRAM_MODULE_V10 *get_bios_mem_info_by_index(gpu_t *gpu, uint8_t idx)
+{
+	uint8_t *VBIOSImage = (uint8_t *)(gpu->vbios);
+	
+	// Find ATOM_ROM_HEADER
+	ATOM_ROM_HEADER_V2_2 *hdr = (ATOM_ROM_HEADER_V2_2 *)(VBIOSImage + ((uint16_t *)(VBIOSImage + OFFSET_TO_POINTER_TO_ATOM_ROM_HEADER))[0]);
+	
+	// Find Master Data Table List
+	ATOM_MASTER_DATA_TABLE_LIST_V2_1 *DataTblList = ((ATOM_MASTER_DATA_TABLE_LIST_V2_1 *)(VBIOSImage + hdr->MasterDataTableOffset));
+	
+	// Find VRAM_Info table
+	VRAM_INFO_HEADER_V2_4 *VRInfoBase = (void *)(VBIOSImage + DataTblList->VRAM_Info);
+	
+	// Sanity check - checking for format rev. 2 and content rev. 4.
+	if(VRInfoBase->CommonHeader.TableFormatRevision != 2 || VRInfoBase->CommonHeader.TableContentRevision != 4) return(NULL);
+	
+	// Passed the first sanity check - fetch first module
+	VRAM_MODULE_V10 *VRAMModules = (VRAM_MODULE_V10 *)(((uint8_t *)VRInfoBase) + sizeof(VRAM_INFO_HEADER_V2_4));
+	
+	// Sanity check - is the index requested within range?
+	if(idx >= VRInfoBase->NumberOfVRAMModules) return(NULL);
+	
+	// Walk the list of modules until we find the one we want
+	for(int i = 0; i < idx; ++i)
+		VRAMModules = (VRAM_MODULE_V10 *)(((uint8_t *)VRAMModules) + VRAMModules->ModuleSize);
+	
+	// Return the module info with the specified index
+	return(VRAMModules);
+}
+
+#define SAMSUNG             0x1
+#define INFINEON            0x2
+#define ELPIDA              0x3
+#define ETRON               0x4
+#define NANYA               0x5
+#define HYNIX               0x6
+#define MOSEL               0x7
+#define WINBOND             0x8
+#define ESMT                0x9
+#define MICRON              0xF
+
+const char *MemVendorNameStrs[0x10] =
+{
+	"Reserved",
+	"Samsung",
+	"Infineon",
+	"Elpida",
+	"Etron",
+	"Nanya",
+	"Hynix",
+	"Mosel",
+	"Winbond",
+	"ESMT",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Micron"
+};	
 
 /*
  * Find all suitable cards, then find their memory space and get memory information.
@@ -888,30 +953,67 @@ int main(int argc, char *argv[])
           d->mem = find_mem(MEM_HBM, 1, 0);
         }
         else {
-          for (i=6;--i;)
-          {
-            if (pcidev->size[i] == 0x40000) {
+          //for (i=6;--i;)
+          //{
+          i = 5;
+            //if (pcidev->size[i] == 0x40000) {
               base = (pcidev->base_addr[i] & 0xfffffff0);
               fd = open("/dev/mem", O_RDONLY);
 
               if ((pcimem = (int *)mmap(NULL, 0x20000, PROT_READ, MAP_SHARED, fd, base)) != MAP_FAILED) {
                 if (d->gpu->asic_type == CHIP_FIJI) {
                   meminfo = pcimem[mmMC_SEQ_MISC0_FIJI];
+                  mem_type = (meminfo & 0xf0000000) >> 28;
+					manufacturer = (meminfo & 0xf00) >> 8;
+					model = (meminfo & 0xf000) >> 12;
+
+					d->memconfig = meminfo;
+					d->mem_type = mem_type;
+					d->mem_manufacturer = manufacturer;
+					d->mem_model = model;
+					d->mem = find_mem(mem_type, manufacturer, model);
                 }
+                if (d->gpu->asic_type == CHIP_NAVI10)
+                {
+					// Find index to correct memory type
+					uint8_t idx = (pcimem[mmMC_NAVI_UNK] >> 16) & 0xFF;
+					
+					// Look it up by index in the VBIOS
+					VRAM_MODULE_V10 *VRAMModule = get_bios_mem_info_by_index(d, idx);
+					
+					// Error
+					if(!VRAMModule) abort();
+					
+					if(VRAMModule->MemoryType == 0x50)
+						d->mem_type = MEM_GDDR5;
+					else if(VRAMModule->MemoryType == 0x60)
+						d->mem_type = MEM_HBM;
+					else if(VRAMModule->MemoryType == 0x70)
+						d->mem_type = MEM_GDDR6;
+					
+					d->mem_manufacturer = VRAMModule->MemoryVendorRevisionID & 0x0F;
+					d->mem_model = VRAMModule->MemoryVendorRevisionID >> 4;
+					
+					// We'll just make our own memtype here
+					//{ MEM_GDDR6, 0xf, 0x0, "Micron MT61K256M32"},
+					//d->mem = { d->mem_type, d->mem_manufacturer, d->mem_model, VRAMModule->PNString };
+					printf("mem_type == %d\nmem_manufacturer == %d\nmem_model == %d\nmem_pn == %s\n\n", d->mem_type, d->mem_manufacturer, d->mem_model, VRAMModule->PNString);
+					d->mem = find_mem(d->mem_type, d->mem_manufacturer, d->mem_model);
+				}
                 else {
                   meminfo = pcimem[mmMC_SEQ_MISC0];
+                  
+					mem_type = (meminfo & 0xf0000000) >> 28;
+					manufacturer = (meminfo & 0xf00) >> 8;
+					model = (meminfo & 0xf000) >> 12;
+
+					d->memconfig = meminfo;
+					d->mem_type = mem_type;
+					d->mem_manufacturer = manufacturer;
+					d->mem_model = model;
+					d->mem = find_mem(mem_type, manufacturer, model);
                 }
-
-                mem_type = (meminfo & 0xf0000000) >> 28;
-                manufacturer = (meminfo & 0xf00) >> 8;
-                model = (meminfo & 0xf000) >> 12;
-
-                d->memconfig = meminfo;
-                d->mem_type = mem_type;
-                d->mem_manufacturer = manufacturer;
-                d->mem_model = model;
-                d->mem = find_mem(mem_type, manufacturer, model);
-
+                
                 munmap(pcimem, 0x20000);
               } else {
                 ++fail;
@@ -922,8 +1024,8 @@ int main(int argc, char *argv[])
               // memory model found so exit loop
               if (d->mem != NULL)
                 break;
-            }
-          }
+            //}
+          //}
         }
       }
     }

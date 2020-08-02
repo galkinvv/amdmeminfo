@@ -8,8 +8,8 @@ PROGRAM_NAME := amdmeminfo
 SRC := $(wildcard *.c)
 OBJS := ${SRC:.c=.o}
 
-INCLUDE_DIRS := $(AMDAPPSDK_PATH)/include
-LIBRARY_DIRS := $(AMDAPPSDK_PATH)/lib/$(AMDAPPSDK_ARCH)
+INCLUDE_DIRS := $(AMDAPPSDK_PATH)/include /opt/rocm/opencl/include
+LIBRARY_DIRS := $(AMDAPPSDK_PATH)/lib/$(AMDAPPSDK_ARCH) /opt/amdgpu-pro/lib/x86_64-linux-gnu
 LIBRARIES := pci OpenCL
 
 #check if this is an ethos distribution... if so add the correct directory for fglrx
@@ -19,7 +19,7 @@ endif
 
 #compiler settings
 CC := gcc
-CFLAGS := -O3
+CFLAGS := -Og -ggdb3
 
 CFLAGS += $(foreach incdir,$(INCLUDE_DIRS),-I$(incdir))
 LDFLAGS += $(foreach librarydir,$(LIBRARY_DIRS),-L$(librarydir))
