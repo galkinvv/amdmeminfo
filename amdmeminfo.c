@@ -180,6 +180,7 @@ static void showhelp(char *program)
     "-o, --opencl    Order by OpenCL ID (cgminer/sgminer GPU order)\n"
     "-q, --quiet     Only output results\n"
     "-s, --short     Short form output - 1 GPU/line - <OpenCLID>:<PCI Bus.Dev.Func>:<GPU Type>:<BIOSVersion>:<Memory Type>\n"
+    "-v, --version   Show version\n"
     "--use-stderr    Output errors to stderr\n"
     "\n", VERSION, program);
 }
@@ -210,6 +211,9 @@ static bool load_options(int argc, char *argv[])
       opt_opencl_enabled = false;
     } else if (!strcasecmp("--use-stderr", argv[i])) {
       opt_use_stderr = true;
+    } else if (!strcasecmp("--version", argv[i]) || !strcasecmp("-v", argv[i])) {
+      printf("%s\n", VERSION);
+      return false;
     }
   }
 
@@ -252,6 +256,7 @@ static gputype_t gputypes[] = {
     { 0x1002, 0x731f, 0, 0xc1, "Radeon RX 5700 XT", CHIP_NAVI10},
     { 0x1002, 0x731f, 0, 0xc4, "Radeon RX 5700",    CHIP_NAVI10},
     { 0x1002, 0x731f, 0, 0xca, "Radeon RX 5600 XT", CHIP_NAVI10},
+
     /* Navi12 */
     { 0x1002, 0x7360, 0, 0, "Radeon Navi 12", CHIP_NAVI12},
     { 0x1002, 0x7362, 0, 0, "Radeon Navi 12", CHIP_NAVI12},
@@ -269,17 +274,17 @@ static gputype_t gputypes[] = {
     { 0x1002, 0x7300, 0, 0xc9, "Radeon R9 Fury/Nano/X", CHIP_FIJI},
     { 0x1002, 0x7300, 0, 0xca, "Radeon R9 Fury/Nano/X", CHIP_FIJI},
     { 0x1002, 0x7300, 0, 0xcb, "Radeon R9 Fury", CHIP_FIJI},
-    /* RX 5xx */
-    { 0x1002, 0x67df, 0, 0xe7, "Radeon RX 580", CHIP_POLARIS10},
-    { 0x1002, 0x67df, 0, 0xef, "Radeon RX 570", CHIP_POLARIS10},
 
+    /* RX 5xx */
     { 0x1002, 0x67df, 0, 0xe1, "Radeon RX 590", CHIP_POLARIS30},   /* AMD Radeon RX 590 */
     { 0x1002, 0x6fdf, 0, 0xef, "Radeon RX 580", CHIP_POLARIS20},   /* AMD Radeon RX 580 2048SP */
-    
+    { 0x1002, 0x67df, 0, 0xe7, "Radeon RX 580", CHIP_POLARIS10},
+    { 0x1002, 0x67df, 0, 0xef, "Radeon RX 570", CHIP_POLARIS10},
     { 0x1002, 0x67ff, 0, 0xcf, "Radeon RX 560", CHIP_POLARIS11},
     { 0x1002, 0x67ef, 0, 0xe5, "Radeon RX 560", CHIP_POLARIS11},  /* known also as RX560D with CU 14/shaders 896 */
     { 0x1002, 0x67ff, 0, 0xff, "Radeon RX 550", CHIP_POLARIS11},  /* new RX550 with 640 shaders */
     { 0x1002, 0x699f, 0, 0xc7, "Radeon RX 550", CHIP_POLARIS12},
+
     /* RX 4xx */
     { 0x1002, 0x67df, 0, 0, "Radeon RX 470/480", CHIP_POLARIS10},
     { 0x1002, 0x67df, 0, 0xc7, "Radeon RX 480", CHIP_POLARIS10},
@@ -289,6 +294,7 @@ static gputype_t gputypes[] = {
     { 0x1002, 0x67ef, 0, 0xc1, "Radeon RX 460", CHIP_POLARIS11},
     { 0x1002, 0x67ef, 0, 0xc5, "Radeon RX 460", CHIP_POLARIS11},
     { 0x1002, 0x67ef, 0, 0xcf, "Radeon RX 460", CHIP_POLARIS11},
+
     /* R9 3xx */
     { 0x1002, 0x67b1, 0, 0x80, "Radeon R9 390", CHIP_HAWAII},
     { 0x1002, 0x67b0, 0, 0x80, "Radeon R9 390x", CHIP_HAWAII},
@@ -296,6 +302,7 @@ static gputype_t gputypes[] = {
     { 0x1002, 0x6938, 0, 0, "Radeon R9 380x", CHIP_TONGA},
     { 0x1002, 0x6810, 0, 0x81, "Radeon R7 370", CHIP_PITCAIRN},
     { 0x1002, 0x665f, 0, 0x81, "Radeon R7 360", CHIP_BONAIRE},
+
     /* R9 2xx */
     { 0x1002, 0x67B9, 0, 0, "Radeon R9 295x2", CHIP_HAWAII},
     { 0x1002, 0x67b1, 0, 0, "Radeon R9 290/R9 390", CHIP_HAWAII},
@@ -304,6 +311,7 @@ static gputype_t gputypes[] = {
     { 0x1002, 0x6811, 0, 0, "Radeon R9 270", CHIP_PITCAIRN},
     { 0x1002, 0x6810, 0, 0, "Radeon R9 270x/R7 370", CHIP_PITCAIRN},
     { 0x1002, 0x6658, 0, 0, "Radeon R7 260x", CHIP_BONAIRE},
+
     /* HD 7xxx */
     { 0x1002, 0x679b, 0, 0, "Radeon HD7990", CHIP_TAHITI},
     { 0x1002, 0x6798, 0, 0, "Radeon HD7970/R9 280x", CHIP_TAHITI},
@@ -312,6 +320,7 @@ static gputype_t gputypes[] = {
     { 0x1002, 0x6818, 0, 0, "Radeon HD7870", CHIP_PITCAIRN},
     { 0x1002, 0x6819, 0, 0, "Radeon HD7850", CHIP_PITCAIRN},
     { 0x1002, 0x665C, 0, 0, "Radeon HD7790", CHIP_BONAIRE},
+
     /* HD 6xxx */
     { 0x1002, 0x671D, 0, 0, "Radeon HD6990", CHIP_ANTILLES},
     { 0x1002, 0x6718, 0, 0, "Radeon HD6970", CHIP_CAYMAN},
@@ -321,6 +330,7 @@ static gputype_t gputypes[] = {
     { 0x1002, 0x6739, 0, 0, "Radeon HD6850", CHIP_BARTS},
     { 0x1002, 0x6778, 0, 0, "Radeon HD6450/HD7470", CHIP_CAICOS},
     { 0x1002, 0x6779, 0, 0, "Radeon HD6450", CHIP_CAICOS},
+
     /* HD 5xxx */
     { 0x1002, 0x689C, 0, 0, "Radeon HD5970", CHIP_HEMLOCK},
     { 0x1002, 0x6898, 0, 0, "Radeon HD5870", CHIP_CYPRESS},
