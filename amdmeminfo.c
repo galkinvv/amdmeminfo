@@ -51,7 +51,7 @@
 
 #define mmMC_SEQ_MISC0 0xa80
 #define mmMC_SEQ_MISC0_FIJI 0xa71
-#define mmMC_NAVI_UNK		0x50
+#define mmMC_NAVI_UNK 0x50
 
 #define BLANK_BIOS_VER "xxx-xxx-xxxx"
 
