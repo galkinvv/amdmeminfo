@@ -919,6 +919,7 @@ int main(int argc, char *argv[])
 
   for (pcidev = pci->devices; pcidev; pcidev = pcidev->next)
   {
+    pci_fill_info(pcidev, PCI_FILL_CLASS|PCI_FILL_IDENT|PCI_FILL_BASES|PCI_FILL_ROM_BASE|PCI_FILL_SIZES);
     if (((pcidev->device_class & 0xff00) >> 8) == PCI_BASE_CLASS_DISPLAY && pcidev->vendor_id == 0x1002) {
       is_apu = false;
 
