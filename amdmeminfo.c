@@ -653,6 +653,21 @@ static cl_platform_id *opencl_get_platforms(int *platform_count)
   return NULL;
 }
 
+/* local redefinition of cl_device_topology_amd that workarounds build compatibility problems */
+typedef union {
+  struct {
+    cl_uint type;
+    cl_uint data[5];
+  } raw;
+  struct {
+    cl_uint type;
+    char reserved_4[17];
+    cl_char bus;
+    cl_char device;
+    cl_char function;
+  } pcie;
+} amdmeminfo_cl_device_topology_amd;
+
 static int opencl_get_devices()
 {
   cl_int status;
@@ -676,7 +691,7 @@ static int opencl_get_devices()
 
                 // if vendor AMD, lookup pci ID
                 if (intval == 0x1002) {
-                  cl_device_topology_amd amdtopo;
+                  amdmeminfo_cl_device_topology_amd amdtopo = {};
                   gpu_t *dev;
 
                   if ((status = clGetDeviceInfo(devices[i], CL_DEVICE_TOPOLOGY_AMD, sizeof(amdtopo), &amdtopo, NULL)) == CL_SUCCESS) {
